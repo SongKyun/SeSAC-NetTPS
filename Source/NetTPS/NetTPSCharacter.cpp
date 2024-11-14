@@ -52,6 +52,12 @@ ANetTPSCharacter::ANetTPSCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
+	// Gun Component
+	compGun = CreateDefaultSubobject<USceneComponent>(TEXT("GUN"));
+	compGun->SetupAttachment(GetMesh(), TEXT("gunPosition"));
+	compGun->SetRelativeLocation(FVector(-7.144f, 3.68f, 4.136f));
+	compGun->SetRelativeRotation(FRotator(3.4f, 75.699f, 6.642f));
+
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
@@ -91,6 +97,8 @@ void ANetTPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 		// F 키 눌렀을 때 호출되는 함수 등록
 		EnhancedInputComponent->BindAction(TakeAction, ETriggerEvent::Started, this, &ANetTPSCharacter::TakePistol);
+		// 마우스 왼쪽 버튼 호출 함수 등록
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ANetTPSCharacter::Fire);
 	}
 	else
 	{
@@ -137,38 +145,96 @@ void ANetTPSCharacter::Look(const FInputActionValue& Value)
 void ANetTPSCharacter::TakePistol()
 {
 	// 총을 소유하고 있지 않다면 일정범위 안에 있는 총을 잡는다.
-	UE_LOG(LogTemp, Warning, TEXT("Pick Up Gun"));
-	// 1. 총을 잡고 있다면
-	if (bHasPistol == true) return;
-		
-	// 2. 월드에 있는 총을 모두 찾는다.
-	TArray<AActor*> allActors;
-	TArray<AActor*> pistolActors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), allActors);
-	for (int i = 0; i < allActors.Num(); i++)
+	// 1. 총을 잡고 있지 않다면
+	if (bHasPistol == false)
 	{
-		if (allActors[i]->GetActorLabel().Contains(TEXT("BP_Pistol")))
+		// 2. 월드에 있는 총을 모두 찾는다.
+		TArray<AActor*> allActors;
+		TArray<AActor*> pistolActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), allActors);
+		for (int i = 0; i < allActors.Num(); i++)
 		{
-			pistolActors.Add(allActors[i]);
-		}
-	}
-
-	for (AActor* pistol : pistolActors)
-	{
-		// 만약에 pistol 의 소유자가 있다면 - 거리를 구할 필요가 없다
-		if (pistol->GetOwner() == nullptr)
-		{
-			// 3. 총과의 거리를 구하자.
-			float dist = FVector::Distance(pistol->GetActorLocation(), GetActorLocation());
-			// 4. 만약에 거리가 일정범위 안에 있다면
-			if (dist < distanceToGun)
+			if (allActors[i]->GetActorLabel().Contains(TEXT("BP_Pistol")))
 			{
-				// 5. 총을 Mesh 의 손에 붙히자
-				pistol->SetOwner(this);
-				bHasPistol = true;
-				pistol->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("gunPosition"));
-				break;
+				pistolActors.Add(allActors[i]);
+			}
+		}
+
+		for (AActor* pistol : pistolActors)
+		{
+			// 만약에 pistol 의 소유자가 있다면 - 거리를 구할 필요가 없다
+			if (pistol->GetOwner() == nullptr)
+			{
+				// 3. 총과의 거리를 구하자.
+				float dist = FVector::Distance(pistol->GetActorLocation(), GetActorLocation());
+				// 4. 만약에 거리가 일정범위 안에 있다면
+				if (dist < distanceToGun)
+				{
+					// 5. 총을 Mesh 의 손에 붙히자
+					pistol->SetOwner(this);
+					bHasPistol = true;
+					ownedPistol = pistol;
+
+					AttackPistol(pistol);
+					break;
+				}
 			}
 		}
 	}
+	else // 총을 잡고 있다면
+	{
+		// 총을 놓자 , 순서를 염두
+		DetachPistol();
+
+		bHasPistol = false;
+		ownedPistol->SetOwner(nullptr);
+		ownedPistol = nullptr;
+	}
+}
+
+void ANetTPSCharacter::AttachPistol(AActor* pistol)
+{
+	UE_LOG(LogTemp, Warning, TEXT("1111"));
+	// pistol이 가지고 있는 StaticMesh 컴포넌트 가져오자
+	UStaticMeshComponent* comp = pistol->GetComponentByClass<UStaticMeshComponent>();
+	// 가져온 컴포넌트를 이용해서 SimulatePhysics 비활성화
+	comp->SetSimulatePhysics(false);
+	// Mesh - gunPosition 소켓에 붙히자
+	pistol->AttachToComponent(compGun, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+}
+
+void ANetTPSCharacter::DetachPistol()
+{
+	UStaticMeshComponent* comp = ownedPistol->GetComponentByClass<UStaticMeshComponent>();
+	comp->SetSimulatePhysics(true);
+	ownedPistol->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
+}
+
+void ANetTPSCharacter::Fire()
+{
+	// 만약에 총을 들고 있지 않다면 함수를 나가자
+	if (bHasPistol == false) return;
+	// LineTrace 로 부딪힌 위치 찾기
+	
+	FVector startPos = FollowCamera->GetComponentLocation(); // 월드 좌표 Location
+	FVector endPos = startPos + FollowCamera->GetForwardVector() * 100000;
+
+	FCollisionQueryParams params;
+	params.AddIgnoredActor(this);
+
+	FHitResult hitInfo;
+	bool bHit = GetWorld()->LineTraceSingleByChannel(hitInfo, startPos, endPos, ECollisionChannel::ECC_Visibility, params);
+
+	if (bHit)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s, %s"),
+			*hitInfo.GetActor()->GetActorLabel(),
+			*hitInfo.GetActor()->GetName());
+
+		// 맞은 위치에  파티클로 표시 하자.
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), gunEffect, hitInfo.Location, FRotator(), true);
+	}
+
+	// 총 쏘는 애니메이션을 실행하자
+	PlayAnimMontage(playerMontage, 2, TEXT("Fire"));
 }

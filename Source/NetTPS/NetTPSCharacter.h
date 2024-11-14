@@ -47,6 +47,9 @@ class ANetTPSCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* TakeAction;
 
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* FireAction;
+
 public:
 	ANetTPSCharacter();
 	
@@ -60,14 +63,32 @@ protected:
 	void Look(const FInputActionValue& Value);
 
 	void TakePistol();
+	void AttachPistol(AActor* pistol);
+	void DetachPistol();
 
+	void Fire();
+	
 public:
+	// 총이 붙어야 하는 컴포넌트
+	UPROPERTY(EditAnywhere)
+	USceneComponent* compGun;
+
 	// 총 소유 여부
 	bool bHasPistol = false;
+
+	// 내가 잡고 있는 총
+	UPROPERTY()
+	AActor* ownedPistol = nullptr;
 
 	// 총을 잡을 수 있는 일정범위
 	UPROPERTY(EditAnywhere)
 	float distanceToGun = 200;
+
+	UPROPERTY(EditAnywhere)
+	class UParticleSystem* gunEffect;
+
+	UPROPERTY(EditAnywhere)
+	class UAnimMontage* playerMontage;
 
 protected:
 	// APawn interface
