@@ -22,3 +22,8 @@ void UNetPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		dirH = FVector::DotProduct(player->GetActorRightVector(), player->GetVelocity());
 	}
 }
+
+void UNetPlayerAnimInstance::AnimNotify_OnReloadFinish()
+{
+	player->ReloadFinish();
+}

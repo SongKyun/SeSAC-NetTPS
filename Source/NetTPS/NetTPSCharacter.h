@@ -50,11 +50,16 @@ class ANetTPSCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* FireAction;
 
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* ReloadAction;
+
 public:
 	ANetTPSCharacter();
 	
-
 protected:
+
+	// MainUI 초기화
+	void InitMainUIWidget();
 
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
@@ -67,6 +72,10 @@ protected:
 	void DetachPistol();
 
 	void Fire();
+	void Reload();
+
+public:
+	void ReloadFinish();
 	
 public:
 	// 총이 붙어야 하는 컴포넌트
@@ -90,12 +99,34 @@ public:
 	UPROPERTY(EditAnywhere)
 	class UAnimMontage* playerMontage;
 
+	// MainUI 위젯 블루프린트 클래스를 담을 변수
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<class UNetTPSWidget> netTPSWidget;
+	
+	// 만들어진 MainUI를 담을 변수
+	UPROPERTY()
+	class UNetTPSWidget* NetTPSUI;
+
+	// 최대 총알 갯수
+	UPROPERTY(EditAnywhere)
+	float maxBulletCount = 10;
+	
+	// 현재 총알 갯수
+	float currBulletCount = 0;
+
+	// 현재 재장전 중인지 여부
+	bool IsReloading = false;
+
+	FVector originCamPos;
+
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
 	// To add mapping context
 	virtual void BeginPlay();
+
+	virtual void Tick(float DeltaSeconds) override;
 
 public:
 	/** Returns CameraBoom subobject **/
