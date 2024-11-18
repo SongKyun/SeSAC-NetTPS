@@ -68,7 +68,7 @@ protected:
 	void Look(const FInputActionValue& Value);
 
 	void TakePistol();
-	void AttachPistol(AActor* pistol);
+	void AttachPistol(class APistol* pistol);
 	void DetachPistol();
 
 	void Fire();
@@ -76,6 +76,7 @@ protected:
 
 public:
 	void ReloadFinish();
+	void InitBulletUI();
 	
 public:
 	// 총이 붙어야 하는 컴포넌트
@@ -87,7 +88,7 @@ public:
 
 	// 내가 잡고 있는 총
 	UPROPERTY()
-	AActor* ownedPistol = nullptr;
+	class APistol* ownedPistol = nullptr;
 
 	// 총을 잡을 수 있는 일정범위
 	UPROPERTY(EditAnywhere)
@@ -107,17 +108,20 @@ public:
 	UPROPERTY()
 	class UNetTPSWidget* NetTPSUI;
 
-	// 최대 총알 갯수
-	UPROPERTY(EditAnywhere)
-	float maxBulletCount = 10;
-	
-	// 현재 총알 갯수
-	float currBulletCount = 0;
-
 	// 현재 재장전 중인지 여부
 	bool IsReloading = false;
 
 	FVector originCamPos;
+
+	// HealBar UI 가지는 컴포넌트
+	UPROPERTY(EditAnywhere)
+	class UWidgetComponent* compHP;
+	// 최대 HP
+	float maxHP = 100;
+	// 현재 HP
+	float currHP;
+
+	void DamageProcess(float damage);
 
 protected:
 	// APawn interface
@@ -134,4 +138,3 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
-

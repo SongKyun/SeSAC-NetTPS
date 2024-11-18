@@ -12,6 +12,9 @@
 #include "InputActionValue.h"
 #include "Kismet/GameplayStatics.h"
 #include "NetTPSWidget.h"
+#include "Pistol.h"
+#include "Components/WidgetComponent.h"
+#include "HealthBar.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -59,6 +62,11 @@ ANetTPSCharacter::ANetTPSCharacter()
 	compGun->SetRelativeLocation(FVector(-7.144f, 3.68f, 4.136f));
 	compGun->SetRelativeRotation(FRotator(3.4f, 75.699f, 6.642f));
 
+	// HP Widget Component 위젯 컴포넌트
+	compHP = CreateDefaultSubobject<UWidgetComponent>(TEXT("HP"));
+	compHP->SetupAttachment(RootComponent);
+
+
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
@@ -72,6 +80,9 @@ void ANetTPSCharacter::BeginPlay()
 
 	// originCamPos를 초기의 CameraBoom 값으로 설정
 	originCamPos = CameraBoom->GetRelativeLocation();
+
+	// 현재 HP를 최대 HP로 설정
+	currHP = maxHP;
 }
 
 void ANetTPSCharacter::Tick(float DeltaSeconds)
@@ -85,6 +96,15 @@ void ANetTPSCharacter::Tick(float DeltaSeconds)
 
 //////////////////////////////////////////////////////////////////////////
 // Input
+
+void ANetTPSCharacter::DamageProcess(float damage)
+{
+	// 현재 HP를 줄이자
+	currHP-= damage;
+	// HPBar를 갱신
+	UHealthBar* hpBar = Cast<UHealthBar>(compHP->GetWidget());
+	hpBar->UpdateHPBar(currHP / maxHP);
+}
 
 void ANetTPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -129,13 +149,6 @@ void ANetTPSCharacter::InitMainUIWidget()
 
 	NetTPSUI = Cast<UNetTPSWidget>(CreateWidget(GetWorld(), netTPSWidget));
 	NetTPSUI->AddToViewport();
-
-	// 총알 UI 생성
-	currBulletCount = maxBulletCount;
-	for (int i = 0; i < currBulletCount; i++)
-	{
-		NetTPSUI->AddBullet();
-	}
 }
 
 void ANetTPSCharacter::Move(const FInputActionValue& Value)
@@ -182,21 +195,18 @@ void ANetTPSCharacter::TakePistol()
 	{
 		// 2. 월드에 있는 총을 모두 찾는다.
 		TArray<AActor*> allActors;
-		TArray<AActor*> pistolActors;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), allActors);
+		TArray<APistol*> pistolActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APistol::StaticClass(), allActors);
 		for (int i = 0; i < allActors.Num(); i++)
 		{
-			if (allActors[i]->GetActorLabel().Contains(TEXT("BP_Pistol")))
-			{
-				pistolActors.Add(allActors[i]);
-			}
+				pistolActors.Add(Cast<APistol>(allActors[i]));
 		}
 
 		// 나와 총의 최단거리
 		float closestDist = std::numeric_limits<float>::max();
-		AActor* closestPistol = nullptr;
+		APistol* closestPistol = nullptr;
 
-		for (AActor* pistol : pistolActors)
+		for (APistol* pistol : pistolActors)
 		{
 			// 만약에 pistol 의 소유자가 있다면 - 거리를 구할 필요가 없다
 			if (pistol->GetOwner() == nullptr)
@@ -225,7 +235,7 @@ void ANetTPSCharacter::TakePistol()
 	}
 }
 
-void ANetTPSCharacter::AttachPistol(AActor* pistol)
+void ANetTPSCharacter::AttachPistol(APistol* pistol)
 {
 	// 총을 Mesh 의 손에 붙히자
 	if (pistol == nullptr) return; // null 체크
@@ -248,6 +258,10 @@ void ANetTPSCharacter::AttachPistol(AActor* pistol)
 
 	// UI 보이게 하기
 	NetTPSUI->ShowCrosshair(true);
+
+	// ownedPistol의 현재 총알 갯수만큼 총알 UI를 채우자
+	InitBulletUI();
+
 }
 
 void ANetTPSCharacter::DetachPistol()
@@ -265,6 +279,9 @@ void ANetTPSCharacter::DetachPistol()
 	// UI 보이지 않게 하기
 	NetTPSUI->ShowCrosshair(false);
 
+	// 총알 UI 지우자
+	NetTPSUI->PopBulletAll();
+
 	bHasPistol = false;
 	ownedPistol->SetOwner(nullptr);
 	ownedPistol = nullptr;
@@ -276,7 +293,7 @@ void ANetTPSCharacter::Fire()
 	if (bHasPistol == false) return;
 	
 	// 현재 총알 갯수가 0보다 작거나 같으면 함수를 나간다
-	if (currBulletCount <= 0) return;
+	if (ownedPistol->currBulletCount <= 0) return;
 
 	// 재장전 중이면 나가자
 	if (IsReloading) return;
@@ -293,20 +310,26 @@ void ANetTPSCharacter::Fire()
 
 	if (bHit)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("%s, %s"),
-			*hitInfo.GetActor()->GetActorLabel(),
-			*hitInfo.GetActor()->GetName());
-
 		// 맞은 위치에  파티클로 표시 하자.
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), gunEffect, hitInfo.Location, FRotator(), true);
+
+		// 만약에 맞은 Actor가 Player 라면
+		ANetTPSCharacter* player = Cast<ANetTPSCharacter>(hitInfo.GetActor());
+		if (player)
+		{
+			// 벽을 만나면 널체크를 ..
+			// 해당 Player가 가지고 있는 DamageProcess 함수 실행
+			player->DamageProcess(ownedPistol->weaponDamage);
+		}
+		// 해당 플레이어가 가지고 있는 DamageProcess 함수 실행
 	}
 
 	// 총 쏘는 애니메이션을 실행하자
 	PlayAnimMontage(playerMontage, 2, TEXT("Fire"));
 
 	// 총알 제거
-	currBulletCount--;
-	NetTPSUI->PopBullet(currBulletCount);
+	ownedPistol->currBulletCount--;
+	NetTPSUI->PopBullet(ownedPistol->currBulletCount);
 }
 
 void ANetTPSCharacter::Reload()
@@ -315,7 +338,7 @@ void ANetTPSCharacter::Reload()
 	if (bHasPistol == false) return;
 
 	// 현재 재장전 중이면 함수를 나가자
-	if (IsReloading) return;
+	if (ownedPistol->IsMaxBulletCount()) return;
 
 	IsReloading = true;
 
@@ -327,14 +350,19 @@ void ANetTPSCharacter::ReloadFinish()
 {
 	IsReloading = false;
 
-	// 빈 총알 UI 를 채우자.
-	// 채워야 하는 총알 갯수 계산
-	int32 addBulletCount = maxBulletCount - currBulletCount;
-
 	// 현재 총알 갯수를 최대 총알 갯수로 설정
-	currBulletCount = maxBulletCount;
+	ownedPistol->Reload();
 
-	for (int i = 0; i < addBulletCount; i++)
+	InitBulletUI();
+}
+
+void ANetTPSCharacter::InitBulletUI()
+{
+	// 총알 UI 다 지우자
+	NetTPSUI->PopBulletAll();
+
+	// 총알 UI 채우자
+	for (int i = 0; i < ownedPistol->currBulletCount; i++)
 	{
 		NetTPSUI->AddBullet();
 	}
