@@ -29,8 +29,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float dirV = 0;
 
+	// 죽음 체크
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsDead = false;
+
 	UPROPERTY()
 	class ANetTPSCharacter* player;
+
+
 
 public:
 	// Reload 애니메이션 끝나는 부분에 호출되는 함수

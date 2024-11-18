@@ -15,7 +15,12 @@ void UNetPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 	if (player)
 	{
+		// 총을 들었는지 여부
 		bHasPistol = player->bHasPistol;
+
+		// 죽었는지 여부
+		bIsDead = player->isDead;
+
 		// 앞, 뒤 방향에 따른 dirV 값 구하자
 		dirV = FVector::DotProduct(player->GetActorForwardVector(), player->GetVelocity());
 		// 좌, 우 방향에 따른 dirH 값 구하자

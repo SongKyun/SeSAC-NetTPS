@@ -23,7 +23,6 @@ void APistol::BeginPlay()
 void APistol::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
 bool APistol::IsMaxBulletCount()

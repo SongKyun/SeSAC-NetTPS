@@ -80,9 +80,6 @@ void ANetTPSCharacter::BeginPlay()
 
 	// originCamPos를 초기의 CameraBoom 값으로 설정
 	originCamPos = CameraBoom->GetRelativeLocation();
-
-	// 현재 HP를 최대 HP로 설정
-	currHP = maxHP;
 }
 
 void ANetTPSCharacter::Tick(float DeltaSeconds)
@@ -99,11 +96,15 @@ void ANetTPSCharacter::Tick(float DeltaSeconds)
 
 void ANetTPSCharacter::DamageProcess(float damage)
 {
-	// 현재 HP를 줄이자
-	currHP-= damage;
 	// HPBar를 갱신
 	UHealthBar* hpBar = Cast<UHealthBar>(compHP->GetWidget());
-	hpBar->UpdateHPBar(currHP / maxHP);
+	hpBar->UpdateHPBar(damage);
+	float currHP = hpBar->UpdateHPBar(damage);
+	if (currHP <= 0)
+	{
+		// 죽음 처리
+		isDead = true;
+	}
 }
 
 void ANetTPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -266,6 +267,8 @@ void ANetTPSCharacter::AttachPistol(APistol* pistol)
 
 void ANetTPSCharacter::DetachPistol()
 {
+	if (IsReloading) return;
+
 	UStaticMeshComponent* comp = ownedPistol->GetComponentByClass<UStaticMeshComponent>();
 	comp->SetSimulatePhysics(true);
 	ownedPistol->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
