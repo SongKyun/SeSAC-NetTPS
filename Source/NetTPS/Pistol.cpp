@@ -34,4 +34,3 @@ void APistol::Reload()
 {
 	currBulletCount = maxBulletCount;
 }
-

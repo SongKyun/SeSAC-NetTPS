@@ -121,6 +121,8 @@ public:
 
 	bool isDead = false;
 
+	void PrintNetLog();
+
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;

@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+ï»¿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetTPSCharacter.h"
 #include "Engine/LocalPlayer.h"
@@ -62,7 +62,7 @@ ANetTPSCharacter::ANetTPSCharacter()
 	compGun->SetRelativeLocation(FVector(-7.144f, 3.68f, 4.136f));
 	compGun->SetRelativeRotation(FRotator(3.4f, 75.699f, 6.642f));
 
-	// HP Widget Component À§Á¬ ÄÄÆ÷³ÍÆ®
+	// HP Widget Component ìœ„ì ¯ ì»´í¬ë„ŒíŠ¸
 	compHP = CreateDefaultSubobject<UWidgetComponent>(TEXT("HP"));
 	compHP->SetupAttachment(RootComponent);
 
@@ -78,7 +78,7 @@ void ANetTPSCharacter::BeginPlay()
 
 	InitMainUIWidget();
 
-	// originCamPos¸¦ ÃÊ±âÀÇ CameraBoom °ªÀ¸·Î ¼³Á¤
+	// originCamPosë¥¼ ì´ˆê¸°ì˜ CameraBoom ê°’ìœ¼ë¡œ ì„¤ì •
 	originCamPos = CameraBoom->GetRelativeLocation();
 }
 
@@ -86,9 +86,11 @@ void ANetTPSCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	// CameraBoomÀÌ originCamPos¸¦ ÇâÇØ¼­ °è¼Ó ¿òÁ÷ÀÌÀÚ
+	// CameraBoomì´ originCamPosë¥¼ í–¥í•´ì„œ ê³„ì† ì›€ì§ì´ì
 	FVector pos = FMath::Lerp(CameraBoom->GetRelativeLocation(), originCamPos, DeltaSeconds * 10);
 	CameraBoom->SetRelativeLocation(pos);
+
+	PrintNetLog();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -96,15 +98,37 @@ void ANetTPSCharacter::Tick(float DeltaSeconds)
 
 void ANetTPSCharacter::DamageProcess(float damage)
 {
-	// HPBar¸¦ °»½Å
+	// HPBarë¥¼ ê°±ì‹ 
 	UHealthBar* hpBar = Cast<UHealthBar>(compHP->GetWidget());
 	hpBar->UpdateHPBar(damage);
 	float currHP = hpBar->UpdateHPBar(damage);
 	if (currHP <= 0)
 	{
-		// Á×À½ Ã³¸®
+		// ì£½ìŒ ì²˜ë¦¬
 		isDead = true;
 	}
+}
+
+void ANetTPSCharacter::PrintNetLog()
+{
+	// ì—°ê²° ìƒíƒœ , null ì´ë©´
+	FString connStr = GetNetConnection() == nullptr ? TEXT("Valid Connection") : TEXT("Invalid Connection");
+
+	// Owner(í”Œë ˆì´ì–´ ì»¨íŠ¸ë¡¤ëŸ¬ë¥¼ ê°€ì§€ê³  ìˆìŒ)
+	FString ownerStr = GetOwner() != nullptr ? GetOwner()->GetName() : TEXT("No Owner");
+
+	// ê¶Œí•œ
+	FString role = UEnum::GetValueAsString<ENetRole>(GetLocalRole());
+
+	// ë‚´ê²ƒì¸ì§€
+	FString isMine = IsLocallyControlled() ? TEXT("ë‚´ ê²ƒ") : TEXT("ë‚¨ì˜ ê²ƒ");
+
+	FString logStr = FString::Printf(TEXT("Connection : %s\nOwner : %s\nRole : %s\nmine : %s"), *connStr, *ownerStr, *role, *isMine);
+
+	// ë“œë¡œìš° ë””ë²„ê·¸ : ë¬¸ìì—´ì„ í™”ë©´ì— ê³„ì† ì¶œë ¥
+	DrawDebugString(GetWorld(), GetActorLocation(), logStr, nullptr, FColor::Yellow, 0, true, 1);
+
+	// ì»¨íŠ¸ë¡¤ ì²´í¬í•˜ëŠ” ì–¸ë¦¬ì–¼ ë‚´ë¶€ êµ¬í˜„ í•¨ìˆ˜ HasAuthority();
 }
 
 void ANetTPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -131,9 +155,9 @@ void ANetTPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ANetTPSCharacter::Look);
 
-		// F Å° ´­·¶À» ¶§ È£ÃâµÇ´Â ÇÔ¼ö µî·Ï
+		// F í‚¤ ëˆŒë €ì„ ë•Œ í˜¸ì¶œë˜ëŠ” í•¨ìˆ˜ ë“±ë¡
 		EnhancedInputComponent->BindAction(TakeAction, ETriggerEvent::Started, this, &ANetTPSCharacter::TakePistol);
-		// ¸¶¿ì½º ¿ŞÂÊ ¹öÆ° È£Ãâ ÇÔ¼ö µî·Ï
+		// ë§ˆìš°ìŠ¤ ì™¼ìª½ ë²„íŠ¼ í˜¸ì¶œ í•¨ìˆ˜ ë“±ë¡
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ANetTPSCharacter::Fire);
 
 		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &ANetTPSCharacter::Reload);
@@ -190,11 +214,11 @@ void ANetTPSCharacter::Look(const FInputActionValue& Value)
 
 void ANetTPSCharacter::TakePistol()
 {
-	// ÃÑÀ» ¼ÒÀ¯ÇÏ°í ÀÖÁö ¾Ê´Ù¸é ÀÏÁ¤¹üÀ§ ¾È¿¡ ÀÖ´Â ÃÑÀ» Àâ´Â´Ù.
-	// 1. ÃÑÀ» Àâ°í ÀÖÁö ¾Ê´Ù¸é
+	// ì´ì„ ì†Œìœ í•˜ê³  ìˆì§€ ì•Šë‹¤ë©´ ì¼ì •ë²”ìœ„ ì•ˆì— ìˆëŠ” ì´ì„ ì¡ëŠ”ë‹¤.
+	// 1. ì´ì„ ì¡ê³  ìˆì§€ ì•Šë‹¤ë©´
 	if (bHasPistol == false)
 	{
-		// 2. ¿ùµå¿¡ ÀÖ´Â ÃÑÀ» ¸ğµÎ Ã£´Â´Ù.
+		// 2. ì›”ë“œì— ìˆëŠ” ì´ì„ ëª¨ë‘ ì°¾ëŠ”ë‹¤.
 		TArray<AActor*> allActors;
 		TArray<APistol*> pistolActors;
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APistol::StaticClass(), allActors);
@@ -203,24 +227,24 @@ void ANetTPSCharacter::TakePistol()
 				pistolActors.Add(Cast<APistol>(allActors[i]));
 		}
 
-		// ³ª¿Í ÃÑÀÇ ÃÖ´Ü°Å¸®
+		// ë‚˜ì™€ ì´ì˜ ìµœë‹¨ê±°ë¦¬
 		float closestDist = std::numeric_limits<float>::max();
 		APistol* closestPistol = nullptr;
 
 		for (APistol* pistol : pistolActors)
 		{
-			// ¸¸¾à¿¡ pistol ÀÇ ¼ÒÀ¯ÀÚ°¡ ÀÖ´Ù¸é - °Å¸®¸¦ ±¸ÇÒ ÇÊ¿ä°¡ ¾ø´Ù
+			// ë§Œì•½ì— pistol ì˜ ì†Œìœ ìê°€ ìˆë‹¤ë©´ - ê±°ë¦¬ë¥¼ êµ¬í•  í•„ìš”ê°€ ì—†ë‹¤
 			if (pistol->GetOwner() == nullptr)
 			{
-				// 3. ÃÑ°úÀÇ °Å¸®¸¦ ±¸ÇÏÀÚ.
+				// 3. ì´ê³¼ì˜ ê±°ë¦¬ë¥¼ êµ¬í•˜ì.
 				float dist = FVector::Distance(pistol->GetActorLocation(), GetActorLocation());
-				// 4. ¸¸¾à¿¡ °Å¸®°¡ ÀÏÁ¤¹üÀ§ ¾È¿¡ ÀÖ´Ù¸é
+				// 4. ë§Œì•½ì— ê±°ë¦¬ê°€ ì¼ì •ë²”ìœ„ ì•ˆì— ìˆë‹¤ë©´
 				if (dist < distanceToGun)
 				{
-					// closesDist °ªº¸´Ù dist °ªÀÌ Å©´Ù¸é ( ´õ °¡±õ´Ù´Â ÀÇ¹Ì )
+					// closesDist ê°’ë³´ë‹¤ dist ê°’ì´ í¬ë‹¤ë©´ ( ë” ê°€ê¹ë‹¤ëŠ” ì˜ë¯¸ )
 					if (closestDist > dist)
 					{
-						// ÃÖ´Ü°Å¸® °»½Å
+						// ìµœë‹¨ê±°ë¦¬ ê°±ì‹ 
 						closestDist = dist;
 						closestPistol = pistol;
 					}
@@ -229,38 +253,38 @@ void ANetTPSCharacter::TakePistol()
 		}
 		AttachPistol(closestPistol);
 	}
-	else // ÃÑÀ» Àâ°í ÀÖ´Ù¸é
+	else // ì´ì„ ì¡ê³  ìˆë‹¤ë©´
 	{
-		// ÃÑÀ» ³õÀÚ , ¼ø¼­¸¦ ¿°µÎ
+		// ì´ì„ ë†“ì , ìˆœì„œë¥¼ ì—¼ë‘
 		DetachPistol();
 	}
 }
 
 void ANetTPSCharacter::AttachPistol(APistol* pistol)
 {
-	// ÃÑÀ» Mesh ÀÇ ¼Õ¿¡ ºÙÈ÷ÀÚ
-	if (pistol == nullptr) return; // null Ã¼Å©
+	// ì´ì„ Mesh ì˜ ì†ì— ë¶™íˆì
+	if (pistol == nullptr) return; // null ì²´í¬
 	pistol->SetOwner(this);
 	bHasPistol = true;
 	ownedPistol = pistol;
 
-	// pistolÀÌ °¡Áö°í ÀÖ´Â StaticMesh ÄÄÆ÷³ÍÆ® °¡Á®¿ÀÀÚ
+	// pistolì´ ê°€ì§€ê³  ìˆëŠ” StaticMesh ì»´í¬ë„ŒíŠ¸ ê°€ì ¸ì˜¤ì
 	UStaticMeshComponent* comp = pistol->GetComponentByClass<UStaticMeshComponent>();
-	// °¡Á®¿Â ÄÄÆ÷³ÍÆ®¸¦ ÀÌ¿ëÇØ¼­ SimulatePhysics ºñÈ°¼ºÈ­
+	// ê°€ì ¸ì˜¨ ì»´í¬ë„ŒíŠ¸ë¥¼ ì´ìš©í•´ì„œ SimulatePhysics ë¹„í™œì„±í™”
 	comp->SetSimulatePhysics(false);
-	// Mesh - gunPosition ¼ÒÄÏ¿¡ ºÙÈ÷ÀÚ
+	// Mesh - gunPosition ì†Œì¼“ì— ë¶™íˆì
 	pistol->AttachToComponent(compGun, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 
-	// ÃÑ µé¾úÀ» ¶§ Ä«¸Ş¶ó Ä³¸¯ÅÍ È¸Àü ±â´É º¯°æ (Ä«¸Ş¶ó¿¡ ÀÇÇØ¼­ º¯°æµÇµµ·Ï)
+	// ì´ ë“¤ì—ˆì„ ë•Œ ì¹´ë©”ë¼ ìºë¦­í„° íšŒì „ ê¸°ëŠ¥ ë³€ê²½ (ì¹´ë©”ë¼ì— ì˜í•´ì„œ ë³€ê²½ë˜ë„ë¡)
 	bUseControllerRotationYaw = true;
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 	CameraBoom->TargetArmLength = 150;
 	originCamPos = FVector(0, 40, 60);
 
-	// UI º¸ÀÌ°Ô ÇÏ±â
+	// UI ë³´ì´ê²Œ í•˜ê¸°
 	NetTPSUI->ShowCrosshair(true);
 
-	// ownedPistolÀÇ ÇöÀç ÃÑ¾Ë °¹¼ö¸¸Å­ ÃÑ¾Ë UI¸¦ Ã¤¿ìÀÚ
+	// ownedPistolì˜ í˜„ì¬ ì´ì•Œ ê°¯ìˆ˜ë§Œí¼ ì´ì•Œ UIë¥¼ ì±„ìš°ì
 	InitBulletUI();
 
 }
@@ -273,16 +297,16 @@ void ANetTPSCharacter::DetachPistol()
 	comp->SetSimulatePhysics(true);
 	ownedPistol->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
 
-	// ÃÑ ³ùÀ» ¶§ Ä«¸Ş¶ó Ä³¸¯ÅÍ È¸Àü ±â´É º¯°æ (Ä«¸Ş¶ó¿Í µ¶¸³)
+	// ì´ ë†¨ì„ ë•Œ ì¹´ë©”ë¼ ìºë¦­í„° íšŒì „ ê¸°ëŠ¥ ë³€ê²½ (ì¹´ë©”ë¼ì™€ ë…ë¦½)
 	bUseControllerRotationYaw = false;
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	CameraBoom->TargetArmLength = 300;
 	originCamPos = FVector(0, 0, 60);
 
-	// UI º¸ÀÌÁö ¾Ê°Ô ÇÏ±â
+	// UI ë³´ì´ì§€ ì•Šê²Œ í•˜ê¸°
 	NetTPSUI->ShowCrosshair(false);
 
-	// ÃÑ¾Ë UI Áö¿ìÀÚ
+	// ì´ì•Œ UI ì§€ìš°ì
 	NetTPSUI->PopBulletAll();
 
 	bHasPistol = false;
@@ -292,17 +316,17 @@ void ANetTPSCharacter::DetachPistol()
 
 void ANetTPSCharacter::Fire()
 {
-	// ¸¸¾à¿¡ ÃÑÀ» µé°í ÀÖÁö ¾Ê´Ù¸é ÇÔ¼ö¸¦ ³ª°¡ÀÚ
+	// ë§Œì•½ì— ì´ì„ ë“¤ê³  ìˆì§€ ì•Šë‹¤ë©´ í•¨ìˆ˜ë¥¼ ë‚˜ê°€ì
 	if (bHasPistol == false) return;
 	
-	// ÇöÀç ÃÑ¾Ë °¹¼ö°¡ 0º¸´Ù ÀÛ°Å³ª °°À¸¸é ÇÔ¼ö¸¦ ³ª°£´Ù
+	// í˜„ì¬ ì´ì•Œ ê°¯ìˆ˜ê°€ 0ë³´ë‹¤ ì‘ê±°ë‚˜ ê°™ìœ¼ë©´ í•¨ìˆ˜ë¥¼ ë‚˜ê°„ë‹¤
 	if (ownedPistol->currBulletCount <= 0) return;
 
-	// ÀçÀåÀü ÁßÀÌ¸é ³ª°¡ÀÚ
+	// ì¬ì¥ì „ ì¤‘ì´ë©´ ë‚˜ê°€ì
 	if (IsReloading) return;
 
-	// LineTrace ·Î ºÎµúÈù À§Ä¡ Ã£±â
-	FVector startPos = FollowCamera->GetComponentLocation(); // ¿ùµå ÁÂÇ¥ Location
+	// LineTrace ë¡œ ë¶€ë”ªíŒ ìœ„ì¹˜ ì°¾ê¸°
+	FVector startPos = FollowCamera->GetComponentLocation(); // ì›”ë“œ ì¢Œí‘œ Location
 	FVector endPos = startPos + FollowCamera->GetForwardVector() * 100000;
 
 	FCollisionQueryParams params;
@@ -313,39 +337,39 @@ void ANetTPSCharacter::Fire()
 
 	if (bHit)
 	{
-		// ¸ÂÀº À§Ä¡¿¡  ÆÄÆ¼Å¬·Î Ç¥½Ã ÇÏÀÚ.
+		// ë§ì€ ìœ„ì¹˜ì—  íŒŒí‹°í´ë¡œ í‘œì‹œ í•˜ì.
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), gunEffect, hitInfo.Location, FRotator(), true);
 
-		// ¸¸¾à¿¡ ¸ÂÀº Actor°¡ Player ¶ó¸é
+		// ë§Œì•½ì— ë§ì€ Actorê°€ Player ë¼ë©´
 		ANetTPSCharacter* player = Cast<ANetTPSCharacter>(hitInfo.GetActor());
 		if (player)
 		{
-			// º®À» ¸¸³ª¸é ³ÎÃ¼Å©¸¦ ..
-			// ÇØ´ç Player°¡ °¡Áö°í ÀÖ´Â DamageProcess ÇÔ¼ö ½ÇÇà
+			// ë²½ì„ ë§Œë‚˜ë©´ ë„ì²´í¬ë¥¼ ..
+			// í•´ë‹¹ Playerê°€ ê°€ì§€ê³  ìˆëŠ” DamageProcess í•¨ìˆ˜ ì‹¤í–‰
 			player->DamageProcess(ownedPistol->weaponDamage);
 		}
-		// ÇØ´ç ÇÃ·¹ÀÌ¾î°¡ °¡Áö°í ÀÖ´Â DamageProcess ÇÔ¼ö ½ÇÇà
+		// í•´ë‹¹ í”Œë ˆì´ì–´ê°€ ê°€ì§€ê³  ìˆëŠ” DamageProcess í•¨ìˆ˜ ì‹¤í–‰
 	}
 
-	// ÃÑ ½î´Â ¾Ö´Ï¸ŞÀÌ¼ÇÀ» ½ÇÇàÇÏÀÚ
+	// ì´ ì˜ëŠ” ì• ë‹ˆë©”ì´ì…˜ì„ ì‹¤í–‰í•˜ì
 	PlayAnimMontage(playerMontage, 2, TEXT("Fire"));
 
-	// ÃÑ¾Ë Á¦°Å
+	// ì´ì•Œ ì œê±°
 	ownedPistol->currBulletCount--;
 	NetTPSUI->PopBullet(ownedPistol->currBulletCount);
 }
 
 void ANetTPSCharacter::Reload()
 {
-	// ÃÑÀ» °¡Áö°í ÀÖÁö ¾Ê°í
+	// ì´ì„ ê°€ì§€ê³  ìˆì§€ ì•Šê³ 
 	if (bHasPistol == false) return;
 
-	// ÇöÀç ÀçÀåÀü ÁßÀÌ¸é ÇÔ¼ö¸¦ ³ª°¡ÀÚ
+	// í˜„ì¬ ì¬ì¥ì „ ì¤‘ì´ë©´ í•¨ìˆ˜ë¥¼ ë‚˜ê°€ì
 	if (ownedPistol->IsMaxBulletCount()) return;
 
 	IsReloading = true;
 
-	// ÀåÀü ¾Ö´Ï¸ŞÀÌ¼Ç ½ÇÇà
+	// ì¥ì „ ì• ë‹ˆë©”ì´ì…˜ ì‹¤í–‰
 	PlayAnimMontage(playerMontage, 1, TEXT("Reload"));
 }
 
@@ -353,7 +377,7 @@ void ANetTPSCharacter::ReloadFinish()
 {
 	IsReloading = false;
 
-	// ÇöÀç ÃÑ¾Ë °¹¼ö¸¦ ÃÖ´ë ÃÑ¾Ë °¹¼ö·Î ¼³Á¤
+	// í˜„ì¬ ì´ì•Œ ê°¯ìˆ˜ë¥¼ ìµœëŒ€ ì´ì•Œ ê°¯ìˆ˜ë¡œ ì„¤ì •
 	ownedPistol->Reload();
 
 	InitBulletUI();
@@ -361,10 +385,10 @@ void ANetTPSCharacter::ReloadFinish()
 
 void ANetTPSCharacter::InitBulletUI()
 {
-	// ÃÑ¾Ë UI ´Ù Áö¿ìÀÚ
+	// ì´ì•Œ UI ë‹¤ ì§€ìš°ì
 	NetTPSUI->PopBulletAll();
 
-	// ÃÑ¾Ë UI Ã¤¿ìÀÚ
+	// ì´ì•Œ UI ì±„ìš°ì
 	for (int i = 0; i < ownedPistol->currBulletCount; i++)
 	{
 		NetTPSUI->AddBullet();
