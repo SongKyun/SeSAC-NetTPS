@@ -41,6 +41,40 @@ public:
     UFUNCTION()
     void OnRep_RotYaw();
 
+    // 매터리얼 색상 변경
+    UPROPERTY()
+    class UMaterialInstanceDynamic* mat;
+
+    float currTime = 0;
+    float changeTime = 2.0f;
+
+    UPROPERTY(ReplicatedUsing = OnRep_ChangeColor)
+    FLinearColor matColor;
+    UFUNCTION()
+    void OnRep_ChangeColor();
+    void ChangeColor();
+
+    // RPC 이용해서 크기변경
+    void ChangeScale();
+
+    // 서버 RPC
+    UFUNCTION(Server, Reliable) // Server(서버), Reliable(신뢰)
+    void ServerRPC_ChangeScale();
+
+    // 클라이언트 RPC
+    UFUNCTION(Client, Reliable)
+    void ClientRPC_ChangeScale(FVector scale);
+
+    // Multicast RPC 모두 동기화를 위해
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastRPC_ChangeScale(FVector scale);
+
+    // RPC 이용해서 위치를 바꿔보자
+    void ChangeLocation();
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastRPC_ChangeLocation(FVector NewLocation);
+
+
     void FindOwner();
     void Rotate();
     void PrintNetLog();

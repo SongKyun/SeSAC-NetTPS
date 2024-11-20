@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "NetTPSCharacter.h"
 #include <Net/UnrealNetwork.h>
+#include <Kismet/KismetMathLibrary.h>
 
 // Sets default values
 ANetActor::ANetActor()
@@ -24,6 +25,18 @@ void ANetActor::BeginPlay()
 {
 	Super::BeginPlay();
 	
+    // 매터리얼 복제
+    mat = compMesh->CreateDynamicMaterialInstance(0);
+
+    // 1초마다 ChangeScale 함수 호출하는 타이머 등록
+    FTimerHandle handle;
+    GetWorldTimerManager().SetTimer(handle, this, &ANetActor::ChangeScale, 1.0f, true);
+
+    if (HasAuthority())
+    {
+        FTimerHandle handleLocation;
+        GetWorldTimerManager().SetTimer(handleLocation, this, &ANetActor::ChangeLocation, 1.0f, true);
+    }
 }
 
 // Called every frame
@@ -34,6 +47,7 @@ void ANetActor::Tick(float DeltaTime)
     PrintNetLog();
     FindOwner();
     Rotate();
+    ChangeColor();
 }
 
     // 동기화 했을 때 클라이언트마다 호출이 된다
@@ -45,7 +59,9 @@ void ANetActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetim
     // Replicate 하고 싶은 변수를 등록해줘야함
     DOREPLIFETIME(ANetActor, rotYaw);
 
-    UE_LOG(LogTemp, Warning, TEXT("111"));
+    DOREPLIFETIME(ANetActor, matColor); // ChangeColor() 쪽 변수
+
+    //UE_LOG(LogTemp, Warning, TEXT("111"));
 }
 
 void ANetActor::OnRep_RotYaw()
@@ -53,6 +69,79 @@ void ANetActor::OnRep_RotYaw()
     FRotator rot = GetActorRotation();
     rot.Yaw = rotYaw;
     SetActorRotation(rot);
+}
+
+void ANetActor::OnRep_ChangeColor() // 클라에서만 호출되어서 서버에서는 호출되지 않는다
+{
+    // 해당 색을 매터리얼에 설정하자
+    mat->SetVectorParameterValue(TEXT("FloorColor"), matColor);
+}
+
+void ANetActor::ChangeColor()
+{
+    // 만약에 서버라면
+    if (HasAuthority())
+    {
+        // 시간을 흐르게 하자
+        currTime += GetWorld()->DeltaTimeSeconds;
+        // 만약에 현재 시간이 색상변경시간보다 커지면
+        if (currTime > changeTime)
+        {
+            // 랜덤한 색상 뽑아내고
+            matColor = FLinearColor::MakeRandomColor(); // 멤버 변수로 바꿔준다
+            // 해당 색을 매터리얼에 설정하자
+            mat->SetVectorParameterValue(TEXT("FloorColor"), matColor);
+
+            currTime = 0;
+        }
+    }
+    else
+    {
+        mat->SetVectorParameterValue(TEXT("FloorColor"), matColor);
+    }
+}
+
+void ANetActor::ChangeScale()
+{
+    if (GetOwner() == GetWorld()->GetFirstPlayerController()->GetPawn())
+    {
+        // 서버에게 크기 변경 요청
+        ServerRPC_ChangeScale();
+    }
+}
+
+void ANetActor::ServerRPC_ChangeScale_Implementation() // 무조건 서버에서만 호출된다
+{
+    UE_LOG(LogTemp, Warning, TEXT("ServerRPC_ChangeScale_Implementation"));
+    float rand = FMath::RandRange(0.5f, 2.0f);
+
+    // 클라이언트 한테 rand 만큼 스케일 크기 변경되게 알려주자
+    //ClientRPC_ChangeScale(FVector(rand));
+
+    MulticastRPC_ChangeScale(FVector(rand)); // 오너 설정을 자동으로 해서 가까이 가지 않아도 크기가 변경된다
+}
+
+void ANetActor::ClientRPC_ChangeScale_Implementation(FVector scale)
+{
+    SetActorScale3D(scale);
+}
+
+void ANetActor::MulticastRPC_ChangeScale_Implementation(FVector scale)
+{
+    SetActorScale3D(scale);
+}
+
+void ANetActor::ChangeLocation()
+{
+    // 랜덤한 위치를 뽑아냄
+    FVector rand = UKismetMathLibrary::RandomPointInBoundingBox(GetActorLocation(), FVector(20));
+    // rand 모든 클라이언트에 알려주자
+    MulticastRPC_ChangeLocation(rand);
+}
+
+void ANetActor::MulticastRPC_ChangeLocation_Implementation(FVector NewLocation)
+{
+    SetActorLocation(NewLocation);
 }
 
 void ANetActor::FindOwner()
