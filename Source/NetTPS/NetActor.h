@@ -74,8 +74,8 @@ public:
     UFUNCTION(NetMulticast, Reliable)
     void MulticastRPC_ChangeLocation(FVector NewLocation);
 
-
-    void FindOwner();
-    void Rotate();
     void PrintNetLog();
+    void FindOwner();
+
+    void Rotate();
 };

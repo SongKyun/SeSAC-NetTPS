@@ -58,7 +58,7 @@ public:
 	
 protected:
 
-	// MainUI ÃÊ±âÈ­
+	// MainUI ì´ˆê¸°í™”
 	void InitMainUIWidget();
 
 	/** Called for movement input */
@@ -67,30 +67,51 @@ protected:
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
 
-	void TakePistol();
-	void AttachPistol(class APistol* pistol);
-	void DetachPistol();
+    UFUNCTION(Server, Reliable)
+    void SerVerRPC_TakePistol();
+    void TakePistol();
 
-	void Fire();
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastRPC_AttachPistol(class APistol* pistol);
+    void AttachPistol(class APistol* pistol);
+
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastRPC_DetachPistol(class APistol* pistol);
+    void DetachPistol(class APistol* pistol);
+
+    // í´ë¼ì—ì„œ ì„œë²„ë¡œ ë³´ë‚´ëŠ” ê²ƒì´ ìˆì–´ì•¼ í•œë‹¤!!
+    UFUNCTION(Server, Reliable)
+    void ServerRPC_Fire(bool bHit, FHitResult hitInfo);
+
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastRPC_Fire(bool bHit, FHitResult hitInfo);
+    void Fire();
+
+    UFUNCTION(Server, Reliable)
+    void ServerRPC_Reload();
+
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastRPC_Reload();
 	void Reload();
 
 public:
-	void ReloadFinish();
 	void InitBulletUI();
+	void ReloadFinish();
+    void BillboardHP();
 	
 public:
-	// ÃÑÀÌ ºÙ¾î¾ß ÇÏ´Â ÄÄÆ÷³ÍÆ®
+	// ì´ì´ ë¶™ì–´ì•¼ í•˜ëŠ” ì»´í¬ë„ŒíŠ¸
 	UPROPERTY(EditAnywhere)
 	USceneComponent* compGun;
 
-	// ÃÑ ¼ÒÀ¯ ¿©ºÎ
+	// ì´ ì†Œìœ  ì—¬ë¶€
 	bool bHasPistol = false;
 
-	// ³»°¡ Àâ°í ÀÖ´Â ÃÑ
+	// ë‚´ê°€ ì¡ê³  ìˆëŠ” ì´
 	UPROPERTY()
 	class APistol* ownedPistol = nullptr;
 
-	// ÃÑÀ» ÀâÀ» ¼ö ÀÖ´Â ÀÏÁ¤¹üÀ§
+	// ì´ì„ ì¡ì„ ìˆ˜ ìˆëŠ” ì¼ì •ë²”ìœ„
 	UPROPERTY(EditAnywhere)
 	float distanceToGun = 200;
 
@@ -100,20 +121,20 @@ public:
 	UPROPERTY(EditAnywhere)
 	class UAnimMontage* playerMontage;
 
-	// MainUI À§Á¬ ºí·çÇÁ¸°Æ® Å¬·¡½º¸¦ ´ãÀ» º¯¼ö
+	// MainUI ìœ„ì ¯ ë¸”ë£¨í”„ë¦°íŠ¸ í´ë˜ìŠ¤ë¥¼ ë‹´ì„ ë³€ìˆ˜
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<class UNetTPSWidget> netTPSWidget;
 	
-	// ¸¸µé¾îÁø MainUI¸¦ ´ãÀ» º¯¼ö
+	// ë§Œë“¤ì–´ì§„ MainUIë¥¼ ë‹´ì„ ë³€ìˆ˜
 	UPROPERTY()
 	class UNetTPSWidget* NetTPSUI;
 
-	// ÇöÀç ÀçÀåÀü ÁßÀÎÁö ¿©ºÎ
+	// í˜„ì¬ ì¬ì¥ì „ ì¤‘ì¸ì§€ ì—¬ë¶€
 	bool IsReloading = false;
 
 	FVector originCamPos;
 
-	// HealBar UI °¡Áö´Â ÄÄÆ÷³ÍÆ®
+	// HealBar UI ê°€ì§€ëŠ” ì»´í¬ë„ŒíŠ¸
 	UPROPERTY(EditAnywhere)
 	class UWidgetComponent* compHP;
 

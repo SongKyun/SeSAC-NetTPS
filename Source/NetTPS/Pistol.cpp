@@ -17,6 +17,9 @@ void APistol::BeginPlay()
 	Super::BeginPlay();
 	
 	currBulletCount = maxBulletCount;
+
+    SetReplicates(true); // 똑같은 회전 값과 위치 값을 같기 위해 옵션 활성화
+    SetReplicateMovement(true);
 }
 
 // Called every frame

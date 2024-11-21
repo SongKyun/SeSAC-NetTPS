@@ -18,9 +18,9 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	class UProgressBar* HPBar;
 
-	// ÃÖ´ë HP
+	// ìµœëŒ€ HP
 	float maxHP = 100;
-	// ÇöÀç HP
+	// í˜„ìž¬ HP
 	float currHP;
 	
 public:

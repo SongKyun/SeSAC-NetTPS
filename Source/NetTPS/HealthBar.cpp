@@ -1,5 +1,6 @@
 #include "HealthBar.h"
 #include "Components/ProgressBar.h"
+#include <Kismet/GameplayStatics.h>
 
 void UHealthBar::NativeConstruct()
 {
@@ -10,15 +11,15 @@ void UHealthBar::NativeConstruct()
 
 float UHealthBar::UpdateHPBar(float damage)
 {
-	// ÇöÀç HP¸¦ damage ¸¸Å­ ÁÙ¿©ÁÖÀÚ.
+	// í˜„ì¬ HPë¥¼ damage ë§Œí¼ ì¤„ì—¬ì£¼ì.
 	currHP -= damage;
 
-	// ÇöÀç HP ¸¦ 0 ~ 1 »çÀÌÀÇ °ªÀ¸·Î ¹Ù²ÙÀÚ
+	// í˜„ì¬ HP ë¥¼ 0 ~ 1 ì‚¬ì´ì˜ ê°’ìœ¼ë¡œ ë°”ê¾¸ì
 	float percent = currHP / maxHP;
 
-	// ProgressBar °»½Å
+	// ProgressBar ê°±ì‹ 
 	HPBar->SetPercent(percent);
 
-	// ÇöÀç HP °ª ¹İÈ¯ÇÏÀÚ
+	// í˜„ì¬ HP ê°’ ë°˜í™˜í•˜ì
 	return currHP;
 }

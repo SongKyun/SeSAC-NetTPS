@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetTPSCharacter.h"
 #include "Engine/LocalPlayer.h"
@@ -15,11 +15,9 @@
 #include "Pistol.h"
 #include "Components/WidgetComponent.h"
 #include "HealthBar.h"
+#include <Kismet/KismetMathLibrary.h>
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
-
-//////////////////////////////////////////////////////////////////////////
-// ANetTPSCharacter
 
 ANetTPSCharacter::ANetTPSCharacter()
 {
@@ -90,17 +88,24 @@ void ANetTPSCharacter::Tick(float DeltaSeconds)
 	FVector pos = FMath::Lerp(CameraBoom->GetRelativeLocation(), originCamPos, DeltaSeconds * 10);
 	CameraBoom->SetRelativeLocation(pos);
 
-	PrintNetLog();
+	//PrintNetLog();
+    BillboardHP();
 }
-
-//////////////////////////////////////////////////////////////////////////
-// Input
 
 void ANetTPSCharacter::DamageProcess(float damage)
 {
 	// HPBar를 갱신
-	UHealthBar* hpBar = Cast<UHealthBar>(compHP->GetWidget());
-	hpBar->UpdateHPBar(damage);
+    UHealthBar* hpBar = nullptr;
+    // 내것이라면 HealthBar를 갱신
+    if (IsLocallyControlled())
+    {
+        hpBar = NetTPSUI->HealthBar;
+    }
+    else
+    {
+        hpBar = Cast<UHealthBar>(compHP->GetWidget());
+    }
+
 	float currHP = hpBar->UpdateHPBar(damage);
 	if (currHP <= 0)
 	{
@@ -129,6 +134,63 @@ void ANetTPSCharacter::PrintNetLog()
 	DrawDebugString(GetWorld(), GetActorLocation(), logStr, nullptr, FColor::Yellow, 0, true, 1);
 
 	// 컨트롤 체크하는 언리얼 내부 구현 함수 HasAuthority();
+}
+
+void ANetTPSCharacter::SerVerRPC_TakePistol_Implementation()
+{
+    // 총을 소유하고 있지 않다면 일정범위 안에 있는 총을 잡는다.
+    // 1. 총을 잡고 있지 않다면
+    if (bHasPistol == false)
+    {
+        // 2. 월드에 있는 총을 모두 찾는다.
+        TArray<AActor*> allActors;
+        TArray<APistol*> pistolActors;
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), APistol::StaticClass(), allActors);
+        for (int i = 0; i < allActors.Num(); i++)
+        {
+            pistolActors.Add(Cast<APistol>(allActors[i]));
+        }
+
+        // 나와 총의 최단거리
+        float closestDist = std::numeric_limits<float>::max();
+        APistol* closestPistol = nullptr;
+
+        for (APistol* pistol : pistolActors)
+        {
+            // 만약에 pistol 의 소유자가 있다면 - 거리를 구할 필요가 없다
+            if (pistol->GetOwner() == nullptr)
+            {
+                // 3. 총과의 거리를 구하자.
+                float dist = FVector::Distance(pistol->GetActorLocation(), GetActorLocation());
+                // 4. 만약에 거리가 일정범위 안에 있다면
+                if (dist < distanceToGun)
+                {
+                    // closesDist 값보다 dist 값이 크다면 ( 더 가깝다는 의미 )
+                    if (closestDist > dist)
+                    {
+                        // 최단거리 갱신
+                        closestDist = dist;
+                        closestPistol = pistol;
+                    }
+                }
+            }
+        }
+
+        if (closestDist)
+        {
+            // Owner 설정
+            closestPistol->SetOwner(this);
+            // 모든 클라들에게 총을 붙여라
+            MulticastRPC_AttachPistol(closestPistol);
+        }
+    }
+    else // 총을 잡고 있다면
+    {
+        // Owner 설정 ownedPistol 내가 잡고 있는 총
+        ownedPistol->SetOwner(nullptr);
+        // 총을 놓자 , 순서를 염두
+        MulticastRPC_DetachPistol(ownedPistol);
+    }
 }
 
 void ANetTPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -170,10 +232,14 @@ void ANetTPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void ANetTPSCharacter::InitMainUIWidget()
 {
-	UE_LOG(LogTemp, Warning, TEXT("UI"));
+    // 만약에 내 캐릭터가 아니라면 함수를 나가자
+    if (IsLocallyControlled() == false) return;
 
 	NetTPSUI = Cast<UNetTPSWidget>(CreateWidget(GetWorld(), netTPSWidget));
 	NetTPSUI->AddToViewport();
+
+    // 내 HPBar 컴포넌트 안 보이게
+    compHP->SetVisibility(false);
 }
 
 void ANetTPSCharacter::Move(const FInputActionValue& Value)
@@ -214,58 +280,17 @@ void ANetTPSCharacter::Look(const FInputActionValue& Value)
 
 void ANetTPSCharacter::TakePistol()
 {
-	// 총을 소유하고 있지 않다면 일정범위 안에 있는 총을 잡는다.
-	// 1. 총을 잡고 있지 않다면
-	if (bHasPistol == false)
-	{
-		// 2. 월드에 있는 총을 모두 찾는다.
-		TArray<AActor*> allActors;
-		TArray<APistol*> pistolActors;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APistol::StaticClass(), allActors);
-		for (int i = 0; i < allActors.Num(); i++)
-		{
-				pistolActors.Add(Cast<APistol>(allActors[i]));
-		}
+    SerVerRPC_TakePistol();
+}
 
-		// 나와 총의 최단거리
-		float closestDist = std::numeric_limits<float>::max();
-		APistol* closestPistol = nullptr;
-
-		for (APistol* pistol : pistolActors)
-		{
-			// 만약에 pistol 의 소유자가 있다면 - 거리를 구할 필요가 없다
-			if (pistol->GetOwner() == nullptr)
-			{
-				// 3. 총과의 거리를 구하자.
-				float dist = FVector::Distance(pistol->GetActorLocation(), GetActorLocation());
-				// 4. 만약에 거리가 일정범위 안에 있다면
-				if (dist < distanceToGun)
-				{
-					// closesDist 값보다 dist 값이 크다면 ( 더 가깝다는 의미 )
-					if (closestDist > dist)
-					{
-						// 최단거리 갱신
-						closestDist = dist;
-						closestPistol = pistol;
-					}
-				}
-			}
-		}
-		AttachPistol(closestPistol);
-	}
-	else // 총을 잡고 있다면
-	{
-		// 총을 놓자 , 순서를 염두
-		DetachPistol();
-	}
+void ANetTPSCharacter::MulticastRPC_AttachPistol_Implementation(class APistol* pistol)
+{
+    AttachPistol(pistol);
 }
 
 void ANetTPSCharacter::AttachPistol(APistol* pistol)
-{
-	// 총을 Mesh 의 손에 붙히자
-	if (pistol == nullptr) return; // null 체크
-	pistol->SetOwner(this);
-	bHasPistol = true;
+{	
+    bHasPistol = true;
 	ownedPistol = pistol;
 
 	// pistol이 가지고 있는 StaticMesh 컴포넌트 가져오자
@@ -275,43 +300,88 @@ void ANetTPSCharacter::AttachPistol(APistol* pistol)
 	// Mesh - gunPosition 소켓에 붙히자
 	pistol->AttachToComponent(compGun, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 
-	// 총 들었을 때 카메라 캐릭터 회전 기능 변경 (카메라에 의해서 변경되도록)
-	bUseControllerRotationYaw = true;
-	GetCharacterMovement()->bOrientRotationToMovement = false;
-	CameraBoom->TargetArmLength = 150;
-	originCamPos = FVector(0, 40, 60);
+    bUseControllerRotationYaw = true;
+    GetCharacterMovement()->bOrientRotationToMovement = false;
 
-	// UI 보이게 하기
-	NetTPSUI->ShowCrosshair(true);
+    if (IsLocallyControlled())
+    {
+        // 총 들었을 때 카메라 캐릭터 회전 기능 변경 (카메라에 의해서 변경되도록)
+        CameraBoom->TargetArmLength = 150;
+        originCamPos = FVector(0, 40, 60);
 
-	// ownedPistol의 현재 총알 갯수만큼 총알 UI를 채우자
-	InitBulletUI();
-
+        // ownedPistol의 현재 총알 갯수만큼 총알 UI를 채우자
+        InitBulletUI();
+    }
 }
 
-void ANetTPSCharacter::DetachPistol()
+void ANetTPSCharacter::MulticastRPC_DetachPistol_Implementation(APistol* pistol)
+{
+    DetachPistol(pistol);
+}
+
+void ANetTPSCharacter::DetachPistol(APistol* pistol)
 {
 	if (IsReloading) return;
 
-	UStaticMeshComponent* comp = ownedPistol->GetComponentByClass<UStaticMeshComponent>();
+	UStaticMeshComponent* comp = pistol->GetComponentByClass<UStaticMeshComponent>();
 	comp->SetSimulatePhysics(true);
-	ownedPistol->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
+    pistol->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
 
-	// 총 놨을 때 카메라 캐릭터 회전 기능 변경 (카메라와 독립)
-	bUseControllerRotationYaw = false;
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-	CameraBoom->TargetArmLength = 300;
-	originCamPos = FVector(0, 0, 60);
+    bUseControllerRotationYaw = false;
+    GetCharacterMovement()->bOrientRotationToMovement = true;
 
-	// UI 보이지 않게 하기
-	NetTPSUI->ShowCrosshair(false);
+    if (IsLocallyControlled())
+    {
+        // 총 놨을 때 카메라 캐릭터 회전 기능 변경 (카메라와 독립)
+        CameraBoom->TargetArmLength = 300;
+        originCamPos = FVector(0, 0, 60);
 
-	// 총알 UI 지우자
-	NetTPSUI->PopBulletAll();
+        // UI 보이지 않게 하기
+        NetTPSUI->ShowCrosshair(false);
+
+        // 총알 UI 지우자
+        NetTPSUI->PopBulletAll();
+    }
 
 	bHasPistol = false;
-	ownedPistol->SetOwner(nullptr);
+	//ownedPistol->SetOwner(nullptr);
 	ownedPistol = nullptr;
+}
+
+void ANetTPSCharacter::ServerRPC_Fire_Implementation(bool bHit, FHitResult hitInfo)
+{
+    // 모든 클라에게 전달
+    MulticastRPC_Fire(bHit, hitInfo);
+}
+
+void ANetTPSCharacter::MulticastRPC_Fire_Implementation(bool bHit, FHitResult hitInfo)
+{
+
+    if (bHit) // 맞은 경우 안의 로직이 실행됨
+    {
+        // 맞은 위치에  파티클로 표시 하자.
+        UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), gunEffect, hitInfo.Location, FRotator(), true);
+
+        // 만약에 맞은 Actor가 Player 라면
+        ANetTPSCharacter* player = Cast<ANetTPSCharacter>(hitInfo.GetActor());
+        if (player)
+        {
+            // 벽을 만나면 널체크를 ..
+            // 해당 Player가 가지고 있는 DamageProcess 함수 실행
+            player->DamageProcess(ownedPistol->weaponDamage);
+        }
+    }
+
+    // 맞지 않은 경우에도 실행됨
+    // 총알 제거
+    ownedPistol->currBulletCount--;
+    if (IsLocallyControlled())
+    {
+        NetTPSUI->PopBullet(ownedPistol->currBulletCount);
+    }
+
+    // 총 쏘는 애니메이션을 실행하자
+    PlayAnimMontage(playerMontage, 2, TEXT("Fire"));
 }
 
 void ANetTPSCharacter::Fire()
@@ -328,35 +398,35 @@ void ANetTPSCharacter::Fire()
 	// LineTrace 로 부딪힌 위치 찾기
 	FVector startPos = FollowCamera->GetComponentLocation(); // 월드 좌표 Location
 	FVector endPos = startPos + FollowCamera->GetForwardVector() * 100000;
-
 	FCollisionQueryParams params;
 	params.AddIgnoredActor(this);
 
 	FHitResult hitInfo;
 	bool bHit = GetWorld()->LineTraceSingleByChannel(hitInfo, startPos, endPos, ECollisionChannel::ECC_Visibility, params);
 
-	if (bHit)
-	{
-		// 맞은 위치에  파티클로 표시 하자.
-		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), gunEffect, hitInfo.Location, FRotator(), true);
+    // 서버에서 파티클 나오게 요청!
+    ServerRPC_Fire(bHit, hitInfo);
+}
 
-		// 만약에 맞은 Actor가 Player 라면
-		ANetTPSCharacter* player = Cast<ANetTPSCharacter>(hitInfo.GetActor());
-		if (player)
-		{
-			// 벽을 만나면 널체크를 ..
-			// 해당 Player가 가지고 있는 DamageProcess 함수 실행
-			player->DamageProcess(ownedPistol->weaponDamage);
-		}
-		// 해당 플레이어가 가지고 있는 DamageProcess 함수 실행
-	}
+void ANetTPSCharacter::ServerRPC_Reload_Implementation()
+{
+    // 총을 가지고 있지 않고
+    if (bHasPistol == false) return;
+    // 현재 총알 갯수가 최대 총알 갯수와 같으면 함수를 나가자.
+    if (ownedPistol->IsMaxBulletCount()) return;
+    // 현재 재장전 중이면 함수를 나가자.
+    if (IsReloading) return;
 
-	// 총 쏘는 애니메이션을 실행하자
-	PlayAnimMontage(playerMontage, 2, TEXT("Fire"));
+    MulticastRPC_Reload();
+}
 
-	// 총알 제거
-	ownedPistol->currBulletCount--;
-	NetTPSUI->PopBullet(ownedPistol->currBulletCount);
+void ANetTPSCharacter::MulticastRPC_Reload_Implementation()
+{
+
+    IsReloading = true;
+
+    // 장전 애니메이션 실행
+    PlayAnimMontage(playerMontage, 1, TEXT("Reload"));
 }
 
 void ANetTPSCharacter::Reload()
@@ -366,7 +436,7 @@ void ANetTPSCharacter::Reload()
 
 	// 현재 재장전 중이면 함수를 나가자
 	if (ownedPistol->IsMaxBulletCount()) return;
-
+    // 현재 재장전 중이면 함수를 나가자
 	IsReloading = true;
 
 	// 장전 애니메이션 실행
@@ -385,12 +455,36 @@ void ANetTPSCharacter::ReloadFinish()
 
 void ANetTPSCharacter::InitBulletUI()
 {
+    // 만약 내 캐릭터가 아니라면 함수 나가자
+    if (IsLocallyControlled() == false) return;
+
+    // UI 보이게 하기
+    NetTPSUI->ShowCrosshair(true);
+
 	// 총알 UI 다 지우자
 	NetTPSUI->PopBulletAll();
 
-	// 총알 UI 채우자
+	// addBulletCount만큼 총알 UI 채우자
 	for (int i = 0; i < ownedPistol->currBulletCount; i++)
 	{
 		NetTPSUI->AddBullet();
 	}
+}
+
+void ANetTPSCharacter::BillboardHP()
+{
+    // 왜 플레이어 카메라를 안 쓰고 월드에서 카메라를 찾아오는가?
+    // 내가 컨트롤하는 쓰고 있는 카메라를 기준으로 바라보게 해야하기 때문이다.
+
+        // 카메라 찾자
+        AActor* cam = UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0);
+        // 카메라 앞방향
+        FVector forward = -cam->GetActorForwardVector();
+        // 카메라 윗방향
+        FVector up = cam->GetActorUpVector();
+
+        // 위 두 방향을 이용해서 HP 바의 회전 값을 구하자 XZ 앞위 방향을 이용
+        FRotator rot = UKismetMathLibrary::MakeRotFromXZ(forward, up);
+
+        compHP->SetWorldRotation(rot);
 }

@@ -21,7 +21,10 @@ public:
 	UPROPERTY()
 	class UHorizontalBox* bulletMagazine;
 
-	// ÃÑ¾Ë À§Á¬ Blueprint
+    UPROPERTY(meta=(BindWidget))
+    class UHealthBar* HealthBar;
+
+	// ì´ì•Œ ìœ„ì ¯ Blueprint
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UUserWidget> bulletFactory;
 
@@ -29,11 +32,11 @@ public:
 
 	void ShowCrosshair(bool isShow);
 
-	// ÃÑ¾Ë UI Ãß°¡ ÇÔ¼ö
+	// ì´ì•Œ UI ì¶”ê°€ í•¨ìˆ˜
 	void AddBullet();
 
 	void PopBullet(int32 index);
 
-	// ÃÑ¾Ë UI ¸ğµÎ »èÁ¦ ÇÔ¼ö
+	// ì´ì•Œ UI ëª¨ë‘ ì‚­ì œ í•¨ìˆ˜
 	void PopBulletAll();
 };
