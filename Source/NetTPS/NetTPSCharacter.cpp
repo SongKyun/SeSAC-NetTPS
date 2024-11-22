@@ -16,8 +16,41 @@
 #include "Components/WidgetComponent.h"
 #include "HealthBar.h"
 #include <Kismet/KismetMathLibrary.h>
+#include "NetTPSGameMode.h"
+#include <Net/UnrealNetwork.h>
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
+
+void ANetTPSCharacter::MakeCube()
+{
+    // 내 차례가 아니면 함수 나가자
+    if (canMakeCube == false) return;
+
+    ServerRPC_MakeCube();
+}
+
+void ANetTPSCharacter::ServerRPC_MakeCube_Implementation()
+{
+    // 턴 넘기자
+    // 게임 모드 가져오자 (ANetTPSGameMode 형변환)
+    ANetTPSGameMode* gm = Cast<ANetTPSGameMode>(GetWorld()->GetAuthGameMode());
+    gm->ChangeTurn();
+
+    FVector pos = GetActorLocation() + GetActorForwardVector() * 100;
+    MulticastRPC_MakeCube(pos, GetActorRotation());
+}
+
+void ANetTPSCharacter::MulticastRPC_MakeCube_Implementation(FVector pos, FRotator rot)
+{
+    // 큐브 생성하자
+    AActor* cube = GetWorld()->SpawnActor<AActor>(cubeFactory);
+    // 큐브의 위치를 나의 앞 방향으로 100만큼 떨어진 위치에 스폰
+    //FVector pos = GetActorLocation() + GetActorForwardVector() * 100;
+    cube->SetActorLocation(pos);
+    //UE_LOG(LogTemp, Warning, TEXT("%s"), *pos.ToString());
+    // 큐브의 회전값을 나의 회전값으로 설정
+    cube->SetActorRotation(rot);
+}
 
 ANetTPSCharacter::ANetTPSCharacter()
 {
@@ -63,10 +96,6 @@ ANetTPSCharacter::ANetTPSCharacter()
 	// HP Widget Component 위젯 컴포넌트
 	compHP = CreateDefaultSubobject<UWidgetComponent>(TEXT("HP"));
 	compHP->SetupAttachment(RootComponent);
-
-
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
 
 void ANetTPSCharacter::BeginPlay()
@@ -78,6 +107,22 @@ void ANetTPSCharacter::BeginPlay()
 
 	// originCamPos를 초기의 CameraBoom 값으로 설정
 	originCamPos = CameraBoom->GetRelativeLocation();
+
+    // 서버라면
+    if (HasAuthority()) // 이거로 서버로 막아줌
+    {
+        ANetTPSGameMode* gm = Cast<ANetTPSGameMode>(GetWorld()->GetAuthGameMode());
+        // 나를 추가 시키자
+        if (gm) // 널 체크를 하지 않으면 클라에서 추가를 하기 때문에? 클라는 게임모드가 없어서 gm 이 널이기에 널 상태에서 하면 크래쉬
+        {
+            gm->AddPlayer(this);
+        }
+        // 서버이면서 내 캐릭터라면
+        if (IsLocallyControlled())
+        {
+            canMakeCube = true;
+        }
+    }
 }
 
 void ANetTPSCharacter::Tick(float DeltaSeconds)
@@ -111,6 +156,19 @@ void ANetTPSCharacter::DamageProcess(float damage)
 	{
 		// 죽음 처리
 		isDead = true;
+
+        // 움직이지 못하게 하자
+        GetCharacterMovement()->DisableMovement();
+
+        // 충돌 안되게 하자
+        GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+        // 만약에 총들고 있으면 내 캐릭터라면 총을 드랍하자
+        if (bHasPistol && IsLocallyControlled())
+        {
+            TakePistol();
+        }
 	}
 }
 
@@ -176,7 +234,7 @@ void ANetTPSCharacter::SerVerRPC_TakePistol_Implementation()
             }
         }
 
-        if (closestDist)
+        if (closestPistol)
         {
             // Owner 설정
             closestPistol->SetOwner(this);
@@ -223,11 +281,20 @@ void ANetTPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ANetTPSCharacter::Fire);
 
 		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &ANetTPSCharacter::Reload);
+
+		EnhancedInputComponent->BindAction(MakeCubeAction, ETriggerEvent::Started, this, &ANetTPSCharacter::MakeCube);
 	}
 	else
 	{
 		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
+}
+
+void ANetTPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(ANetTPSCharacter, canMakeCube); // 변수 동기화를 위해서 설정
 }
 
 void ANetTPSCharacter::InitMainUIWidget()

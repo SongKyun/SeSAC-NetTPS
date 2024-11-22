@@ -53,6 +53,23 @@ class ANetTPSCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* ReloadAction;
 
+    UPROPERTY(EditAnywhere, Category = "Input")
+    UInputAction* MakeCubeAction;
+    void MakeCube();
+
+public:
+    UPROPERTY(EditAnywhere)
+    TSubclassOf<AActor> cubeFactory;
+
+    UPROPERTY(Replicated) // 서버에서만 변경이 가능하다
+    bool canMakeCube = false;
+
+    UFUNCTION(Server, Reliable)
+    void ServerRPC_MakeCube();
+
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastRPC_MakeCube(FVector pos, FRotator rot);
+
 public:
 	ANetTPSCharacter();
 	
@@ -148,6 +165,8 @@ protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	// To add mapping context
 	virtual void BeginPlay();
 

@@ -73,8 +73,11 @@ void ANetActor::OnRep_RotYaw()
 
 void ANetActor::OnRep_ChangeColor() // 클라에서만 호출되어서 서버에서는 호출되지 않는다
 {
-    // 해당 색을 매터리얼에 설정하자
-    mat->SetVectorParameterValue(TEXT("FloorColor"), matColor);
+    if (mat)
+    {
+        // 해당 색을 매터리얼에 설정하자
+        mat->SetVectorParameterValue(TEXT("FloorColor"), matColor);
+    }
 }
 
 void ANetActor::ChangeColor()
