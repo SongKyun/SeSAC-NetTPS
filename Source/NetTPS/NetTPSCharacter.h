@@ -77,6 +77,8 @@ protected:
 
 	// MainUI 초기화
 	void InitMainUIWidget();
+    UFUNCTION(Client, Reliable)
+    void ClientRPC_Init();
 
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
@@ -88,9 +90,8 @@ protected:
     void SerVerRPC_TakePistol();
     void TakePistol();
 
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastRPC_AttachPistol(class APistol* pistol);
-    void AttachPistol(class APistol* pistol);
+    UFUNCTION()
+    void AttachPistol();
 
     UFUNCTION(NetMulticast, Reliable)
     void MulticastRPC_DetachPistol(class APistol* pistol);
@@ -116,6 +117,7 @@ public:
 	void ReloadFinish();
     void BillboardHP();
     void DieProcess();
+    void PossessedBy(AController* NewController);
 
 public:
 	// 총이 붙어야 하는 컴포넌트
@@ -126,7 +128,7 @@ public:
 	bool bHasPistol = false;
 
 	// 내가 잡고 있는 총
-	UPROPERTY()
+    UPROPERTY(ReplicatedUsing = AttachPistol)
 	class APistol* ownedPistol = nullptr;
 
 	// 총을 잡을 수 있는 일정범위

@@ -103,7 +103,8 @@ void ANetTPSCharacter::BeginPlay()
 	// Call the base class  
 	Super::BeginPlay();
 
-	InitMainUIWidget();
+    FString isServer = HasAuthority() ? TEXT("서버") : TEXT("클라");
+    UE_LOG(LogTemp, Warning, TEXT("%s - BeginPlay : %s"), *isServer, *GetActorNameOrLabel());
 
 	// originCamPos를 초기의 CameraBoom 값으로 설정
 	originCamPos = CameraBoom->GetRelativeLocation();
@@ -236,18 +237,20 @@ void ANetTPSCharacter::SerVerRPC_TakePistol_Implementation()
 
         if (closestPistol)
         {
+            ownedPistol = closestPistol;
             // Owner 설정
             closestPistol->SetOwner(this);
-            // 모든 클라들에게 총을 붙여라
-            MulticastRPC_AttachPistol(closestPistol);
+            AttachPistol();
         }
     }
     else // 총을 잡고 있다면
     {
+        APistol* pistol = ownedPistol;
         // Owner 설정 ownedPistol 내가 잡고 있는 총
         ownedPistol->SetOwner(nullptr);
+        ownedPistol = nullptr;
         // 총을 놓자 , 순서를 염두
-        MulticastRPC_DetachPistol(ownedPistol);
+        MulticastRPC_DetachPistol(pistol);
     }
 }
 
@@ -295,6 +298,7 @@ void ANetTPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(ANetTPSCharacter, canMakeCube); // 변수 동기화를 위해서 설정
+    DOREPLIFETIME(ANetTPSCharacter, ownedPistol);
 }
 
 void ANetTPSCharacter::InitMainUIWidget()
@@ -307,6 +311,11 @@ void ANetTPSCharacter::InitMainUIWidget()
 
     // 내 HPBar 컴포넌트 안 보이게
     compHP->SetVisibility(false);
+}
+
+void ANetTPSCharacter::ClientRPC_Init_Implementation()
+{
+    InitMainUIWidget();
 }
 
 void ANetTPSCharacter::Move(const FInputActionValue& Value)
@@ -350,22 +359,19 @@ void ANetTPSCharacter::TakePistol()
     SerVerRPC_TakePistol();
 }
 
-void ANetTPSCharacter::MulticastRPC_AttachPistol_Implementation(class APistol* pistol)
-{
-    AttachPistol(pistol);
-}
-
-void ANetTPSCharacter::AttachPistol(APistol* pistol)
+void ANetTPSCharacter::AttachPistol()
 {	
+    if (ownedPistol == nullptr) return;
     bHasPistol = true;
-	ownedPistol = pistol;
 
 	// pistol이 가지고 있는 StaticMesh 컴포넌트 가져오자
-	UStaticMeshComponent* comp = pistol->GetComponentByClass<UStaticMeshComponent>();
+	UStaticMeshComponent* comp = ownedPistol->GetComponentByClass<UStaticMeshComponent>();
+
 	// 가져온 컴포넌트를 이용해서 SimulatePhysics 비활성화
 	comp->SetSimulatePhysics(false);
+
 	// Mesh - gunPosition 소켓에 붙히자
-	pistol->AttachToComponent(compGun, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	ownedPistol->AttachToComponent(compGun, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 
     bUseControllerRotationYaw = true;
     GetCharacterMovement()->bOrientRotationToMovement = false;
@@ -569,4 +575,12 @@ void ANetTPSCharacter::DieProcess()
 
     // 다시하기 버튼 보이게
     NetTPSUI->ShowBtnRetry(true);
+}
+
+void ANetTPSCharacter::PossessedBy(AController* NewController)
+{
+    Super::PossessedBy(NewController);
+    UE_LOG(LogTemp, Warning, TEXT("PossessedBy : %s"), *GetActorNameOrLabel());
+
+    ClientRPC_Init();
 }
