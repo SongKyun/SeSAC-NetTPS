@@ -115,7 +115,8 @@ public:
 	void InitBulletUI();
 	void ReloadFinish();
     void BillboardHP();
-	
+    void DieProcess();
+
 public:
 	// 총이 붙어야 하는 컴포넌트
 	UPROPERTY(EditAnywhere)

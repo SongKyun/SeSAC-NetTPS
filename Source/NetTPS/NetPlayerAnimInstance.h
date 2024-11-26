@@ -18,7 +18,7 @@ class NETTPS_API UNetPlayerAnimInstance : public UAnimInstance
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
 public:
-	// ÃÑÀ» µé°í ÀÖ´ÂÁö ¿©ºÎ Ã¼Å© º¯¼ö »ı¼º
+	// ì´ì„ ë“¤ê³  ìˆëŠ”ì§€ ì—¬ë¶€ ì²´í¬ ë³€ìˆ˜ ìƒì„±
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bHasPistol = false;
 
@@ -29,7 +29,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float dirV = 0;
 
-	// Á×À½ Ã¼Å©
+	// ì£½ìŒ ì²´í¬
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bIsDead = false;
 
@@ -39,7 +39,11 @@ public:
 
 
 public:
-	// Reload ¾Ö´Ï¸ŞÀÌ¼Ç ³¡³ª´Â ºÎºĞ¿¡ È£ÃâµÇ´Â ÇÔ¼ö
+	// Reload ì• ë‹ˆë©”ì´ì…˜ ëë‚˜ëŠ” ë¶€ë¶„ì— í˜¸ì¶œë˜ëŠ” í•¨ìˆ˜
 	UFUNCTION()
 	void AnimNotify_OnReloadFinish();
+
+    // ì£½ìŒ ì• ë‹ˆë©”ì´ì…˜ ëë‚  ë•Œ í˜¸ì¶œë˜ëŠ” í•¨ìˆ˜
+    UFUNCTION()
+    void AnimNotify_OnDie();
 };

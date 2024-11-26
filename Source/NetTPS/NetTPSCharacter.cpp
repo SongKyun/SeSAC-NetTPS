@@ -282,7 +282,7 @@ void ANetTPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &ANetTPSCharacter::Reload);
 
-		EnhancedInputComponent->BindAction(MakeCubeAction, ETriggerEvent::Started, this, &ANetTPSCharacter::MakeCube);
+		//EnhancedInputComponent->BindAction(MakeCubeAction, ETriggerEvent::Started, this, &ANetTPSCharacter::MakeCube);
 	}
 	else
 	{
@@ -554,4 +554,19 @@ void ANetTPSCharacter::BillboardHP()
         FRotator rot = UKismetMathLibrary::MakeRotFromXZ(forward, up);
 
         compHP->SetWorldRotation(rot);
+}
+
+void ANetTPSCharacter::DieProcess()
+{
+    if (IsLocallyControlled() == false) return;
+
+    // 회색 화면 처리
+    FollowCamera->PostProcessSettings.ColorSaturation = FVector4(0, 0, 0, 1);
+
+    // 마우스 커서 보이게 하자
+    APlayerController* pc = Cast<APlayerController>(Controller);
+    pc->SetShowMouseCursor(true);
+
+    // 다시하기 버튼 보이게
+    NetTPSUI->ShowBtnRetry(true);
 }

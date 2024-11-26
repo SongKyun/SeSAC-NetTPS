@@ -4,18 +4,25 @@
 #include "NetTPSWidget.h"
 #include "Components/Image.h"
 #include "Components/HorizontalBox.h"
+#include "Components/Button.h"
+#include "NetPlayerController.h"
 
 void UNetTPSWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// crosshair image À§Á¬ °¡Á®¿ÀÀÚ
+	// crosshair image ìœ„ì ¯ ê°€ì ¸ì˜¤ì
 	imgCrosshair = Cast<UImage>(GetWidgetFromName(TEXT("crosshair")));
-	// ÃÊ±â¿¡ UI º¸ÀÌÁö ¾Ê°Ô ÇÏ±â
+	// ì´ˆê¸°ì— UI ë³´ì´ì§€ ì•Šê²Œ í•˜ê¸°
 	ShowCrosshair(false);
 
-	// bulletPanel À§Á¬ °¡Á®¿ÀÀÚ
+	// bulletPanel ìœ„ì ¯ ê°€ì ¸ì˜¤ì
 	bulletMagazine = Cast<UHorizontalBox>(GetWidgetFromName(TEXT("bulletPanel")));
+
+    // btnRetry ì•ˆë³´ì´ê²Œ
+    ShowBtnRetry(false);
+
+    btnRetry->OnClicked.AddDynamic(this, &UNetTPSWidget::OnRetry);
 }
 
 void UNetTPSWidget::ShowCrosshair(bool isShow)
@@ -30,10 +37,22 @@ void UNetTPSWidget::ShowCrosshair(bool isShow)
 	}
 }
 
+void UNetTPSWidget::ShowBtnRetry(bool isShow)
+{
+    if (isShow)
+    {
+        btnRetry->SetVisibility(ESlateVisibility::Visible);
+    }
+    else
+    {
+        btnRetry->SetVisibility(ESlateVisibility::Hidden);
+    }
+}
+
 void UNetTPSWidget::AddBullet()
 {
 	UUserWidget* bullet = CreateWidget(GetWorld(), bulletFactory);
-	// ¸¸µé¾îÁø bulletÀ» bulletMagazine¿¡ Ãß°¡ÇÏÀÚ
+	// ë§Œë“¤ì–´ì§„ bulletì„ bulletMagazineì— ì¶”ê°€í•˜ì
 	bulletMagazine->AddChild(bullet);
 }
 
@@ -50,4 +69,15 @@ void UNetTPSWidget::PopBulletAll()
 	{
 		PopBullet(i);
 	}
+}
+
+void UNetTPSWidget::OnRetry()
+{
+    // ë§ˆìš°ìŠ¤ ì»¤ì„œ ì•ˆ ë³´ì´ê²Œ, í°ì´ë¼ ì»¨íŠ¸ë¡¤ëŸ¬ê°€ ì—†ì–´ì„œ 
+    ANetPlayerController* pc = Cast<ANetPlayerController>(GetWorld()->GetFirstPlayerController());
+    pc->SetShowMouseCursor(false);
+    // ê´€ì°°ì ëª¨ë“œë¡œ ì „í™˜
+    pc->ServerRPC_ChangeToSpectator();
+    // NETTPSWidget UI ì‚­ì œí•˜ê¸°
+    RemoveFromParent();
 }

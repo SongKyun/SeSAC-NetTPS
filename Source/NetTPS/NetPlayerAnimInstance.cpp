@@ -5,7 +5,7 @@ void UNetPlayerAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
 
-	// ³»°¡ ºÙ¾îÀÖ´Â Pawn °¡Á®¿ÀÀÚ
+	// ë‚´ê°€ ë¶™ì–´ìˆëŠ” Pawn ê°€ì ¸ì˜¤ì
 	player = Cast<ANetTPSCharacter>(TryGetPawnOwner());
 }
 
@@ -15,15 +15,15 @@ void UNetPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 	if (player)
 	{
-		// ÃÑÀ» µé¾ú´ÂÁö ¿©ºÎ
+		// ì´ì„ ë“¤ì—ˆëŠ”ì§€ ì—¬ë¶€
 		bHasPistol = player->bHasPistol;
 
-		// Á×¾ú´ÂÁö ¿©ºÎ
+		// ì£½ì—ˆëŠ”ì§€ ì—¬ë¶€
 		bIsDead = player->isDead;
 
-		// ¾Õ, µÚ ¹æÇâ¿¡ µû¸¥ dirV °ª ±¸ÇÏÀÚ
+		// ì•, ë’¤ ë°©í–¥ì— ë”°ë¥¸ dirV ê°’ êµ¬í•˜ì
 		dirV = FVector::DotProduct(player->GetActorForwardVector(), player->GetVelocity());
-		// ÁÂ, ¿ì ¹æÇâ¿¡ µû¸¥ dirH °ª ±¸ÇÏÀÚ
+		// ì¢Œ, ìš° ë°©í–¥ì— ë”°ë¥¸ dirH ê°’ êµ¬í•˜ì
 		dirH = FVector::DotProduct(player->GetActorRightVector(), player->GetVelocity());
 	}
 }
@@ -31,4 +31,9 @@ void UNetPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 void UNetPlayerAnimInstance::AnimNotify_OnReloadFinish()
 {
 	player->ReloadFinish();
+}
+
+void UNetPlayerAnimInstance::AnimNotify_OnDie()
+{
+    player->DieProcess();
 }

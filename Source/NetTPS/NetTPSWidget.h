@@ -28,9 +28,13 @@ public:
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UUserWidget> bulletFactory;
 
+    UPROPERTY(meta=(BindWidget))
+    class UButton* btnRetry;
+
 	virtual void NativeConstruct() override;
 
 	void ShowCrosshair(bool isShow);
+    void ShowBtnRetry(bool isShow);
 
 	// 총알 UI 추가 함수
 	void AddBullet();
@@ -39,4 +43,7 @@ public:
 
 	// 총알 UI 모두 삭제 함수
 	void PopBulletAll();
+
+    UFUNCTION()
+    void OnRetry();
 };
