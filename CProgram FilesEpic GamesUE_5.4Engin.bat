@@ -1,0 +1,1 @@
+"C:\UE_5.4\Engine\Binaries\Win64\UnrealEditor.exe" "C:\Songkyun\NetTPS\NetTps.uproject" -game -log -ResX=600 -ResY=400 -WinX=10 -WinY=100
