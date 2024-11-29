@@ -117,7 +117,6 @@ public:
 	void ReloadFinish();
     void BillboardHP();
     void DieProcess();
-    void PossessedBy(AController* NewController);
 
 public:
 	// 총이 붙어야 하는 컴포넌트
@@ -164,11 +163,16 @@ public:
 
 	void PrintNetLog();
 
+
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+    virtual void OnPlayerStateChanged(APlayerState* NewPlayerState, APlayerState* OldPlayerState) override;
+
+    virtual void PossessedBy(AController* NewController) override;
 
 	// To add mapping context
 	virtual void BeginPlay();

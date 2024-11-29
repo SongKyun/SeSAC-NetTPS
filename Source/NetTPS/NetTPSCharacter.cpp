@@ -18,6 +18,9 @@
 #include <Kismet/KismetMathLibrary.h>
 #include "NetTPSGameMode.h"
 #include <Net/UnrealNetwork.h>
+#include "GameFramework/PlayerState.h"
+#include "NetGameState.h"
+#include "GameUI.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -301,6 +304,16 @@ void ANetTPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     DOREPLIFETIME(ANetTPSCharacter, ownedPistol);
 }
 
+void ANetTPSCharacter::OnPlayerStateChanged(APlayerState* NewPlayerState, APlayerState* OldPlayerState)
+{
+    Super::OnPlayerStateChanged(NewPlayerState, OldPlayerState);
+
+    // GameState 가져오고
+    ANetGameState* gameState = Cast<ANetGameState>(GetWorld()->GetGameState());
+    // GameUI 가져와서 PlayerStateUI 하나 만들어주세요
+    gameState->GetGameUI()->AddPlayerStateUI(NewPlayerState);
+}
+
 void ANetTPSCharacter::InitMainUIWidget()
 {
     // 만약에 내 캐릭터가 아니라면 함수를 나가자
@@ -423,6 +436,15 @@ void ANetTPSCharacter::DetachPistol(APistol* pistol)
 
 void ANetTPSCharacter::ServerRPC_Fire_Implementation(bool bHit, FHitResult hitInfo)
 {
+    // 만약에 맞은 Actor 가 Player라면
+    ANetTPSCharacter* player = Cast<ANetTPSCharacter>(hitInfo.GetActor());
+    if (player)
+    {
+        APlayerState* ps = GetPlayerState();
+        ps->SetScore(ps->GetScore() + 1);
+        ps->OnRep_Score();
+    }
+
     // 모든 클라에게 전달
     MulticastRPC_Fire(bHit, hitInfo);
 }
