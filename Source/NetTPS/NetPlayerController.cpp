@@ -4,6 +4,7 @@
 #include "NetPlayerController.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/SpectatorPawn.h"
+#include "NetGameState.h"
 
 void ANetPlayerController::ServerRPC_ChangeToSpectator_Implementation()
 {
@@ -39,4 +40,17 @@ void ANetPlayerController::RespawnPlayer()
 
     AGameModeBase* gm = GetWorld()->GetAuthGameMode();
     gm->RestartPlayer(this);
+}
+
+void ANetPlayerController::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (IsLocalController())
+    {
+        if (WasInputKeyJustPressed(EKeys::LeftControl))
+        {
+            Cast<ANetGameState>(GetWorld()->GetGameState())->ShowCursor(true);
+        }
+    }
 }

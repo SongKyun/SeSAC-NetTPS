@@ -19,4 +19,7 @@ public:
     void ServerRPC_ChangeToSpectator();
 
     void RespawnPlayer();
+
+public:
+    virtual void Tick(float DeltaSeconds) override;
 };

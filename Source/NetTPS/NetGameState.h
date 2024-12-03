@@ -20,4 +20,6 @@ public:
 
     UPROPERTY()
     class UGameUI* gameUI;
+
+    void ShowCursor(bool isShow);
 };
