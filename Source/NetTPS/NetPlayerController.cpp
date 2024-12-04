@@ -1,10 +1,8 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "NetPlayerController.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "NetGameState.h"
+#include "NetGameInstance.h"
 
 void ANetPlayerController::ServerRPC_ChangeToSpectator_Implementation()
 {
@@ -51,6 +49,19 @@ void ANetPlayerController::Tick(float DeltaSeconds)
         if (WasInputKeyJustPressed(EKeys::LeftControl))
         {
             Cast<ANetGameState>(GetWorld()->GetGameState())->ShowCursor(true);
+        }
+
+        if (WasInputKeyJustPressed(EKeys::Zero))
+        {
+            if (HasAuthority())
+            {
+                Cast<ANetGameState>(GetWorld()->GetGameState())->MulticastRPC_DestroySession();
+            }
+            else
+            {
+                UNetGameInstance* gi = GetGameInstance<UNetGameInstance>();
+                gi->DestroyMySession();
+            }
         }
     }
 }

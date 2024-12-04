@@ -2,6 +2,8 @@
 #include "GameUI.h"
 #include "NetPlayerController.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
+#include "NetGameInstance.h"
+#include "GameFramework/PlayerController.h"
 
 void ANetGameState::BeginPlay()
 {
@@ -32,4 +34,23 @@ void ANetGameState::ShowCursor(bool isShow)
     {
         UWidgetBlueprintLibrary::SetInputMode_GameOnly(pc);
     }
+}
+
+void ANetGameState::LeavePlayer()
+{
+    UE_LOG(LogTemp, Warning, TEXT("남은 인원 : %d"), PlayerArray.Num());
+    if (PlayerArray.Num() == 1)
+    {
+        UNetGameInstance* gi = GetGameInstance<UNetGameInstance>();
+        gi->DestroyMySession();
+    }
+}
+
+void ANetGameState::MulticastRPC_DestroySession_Implementation()
+{
+    UE_LOG(LogTemp, Warning, TEXT("123123"));
+    if (HasAuthority()) return;
+
+    UNetGameInstance* gi = GetGameInstance<UNetGameInstance>();
+    gi->DestroyMySession();
 }

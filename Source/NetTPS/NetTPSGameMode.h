@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -17,8 +15,11 @@ public:
 public:
     UPROPERTY(VisibleAnywhere)
     TArray<class ANetTPSCharacter*> allPlayers;
+
     // 현재 몇 번째 Player 가 만들 차례니?
     int32 turnIdx;
+    // 내가 몇 번째 위치에서 태어나야하니?
+    int32 posIdx;
 
 public:
     void AddPlayer(class ANetTPSCharacter* player);

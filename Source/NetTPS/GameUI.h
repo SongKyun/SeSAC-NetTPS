@@ -38,12 +38,15 @@ public:
     UPROPERTY(EditDefaultsOnly)
     TSubclassOf<class UChatItem> chatItemFactory;
 
+
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
     virtual void NativeConstruct() override;
 
     void SetMyPlayerState();
 
     void AddPlayerStateUI(class APlayerState* ps);
+
+    void AddChat(FString chat);
 
     UFUNCTION()
     void OnTextBoxCommitted(const FText& Text, ETextCommit::Type CommitMethod);

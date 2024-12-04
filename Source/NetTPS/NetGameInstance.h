@@ -24,7 +24,7 @@ public:
 
     // 세션 파괴
     UFUNCTION(BlueprintCallable)
-    void DestroyMySession(FString sessionName);
+    void DestroyMySession();
     void OnDestroySessionComplete(FName sessionName, bool bWasSuccessful);
 
     // 세션 검색
@@ -48,4 +48,7 @@ public:
 
     // 세션 검색이 완전 완료 되었을 때 전달해주는 델리게이트
     FFindComplete OnFindComplete;
+
+    // 현재 접속중인 세션이름
+    FName currSessionName;
 };

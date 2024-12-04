@@ -33,6 +33,7 @@ void UGameUI::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
+    /*
     //// GameState 가져오자.
     //AGameStateBase* gameState = GetWorld()->GetGameState();
 
@@ -57,6 +58,7 @@ void UGameUI::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
     //}
 
     //Text_PlayerState->SetText(FText::FromString(allPlayerState));
+    */
 }
 
 void UGameUI::NativeConstruct()
@@ -118,39 +120,45 @@ void UGameUI::AddPlayerStateUI(APlayerState* ps)
     }
 }
 
+void UGameUI::AddChat(FString chat)
+{
+    float scrollOffset = Scroll_Chat->GetScrollOffset();
+
+    float scrollEndofOffset = Scroll_Chat->GetScrollOffsetOfEnd();
+
+    // chatItem 을 하나 만든다
+    UChatItem* chatItem = CreateWidget<UChatItem>(GetWorld(), chatItemFactory);
+
+    // 만들어진 chatItem에 내용을 셋팅
+    chatItem->SetContent(FText::FromString(chat));
+
+    // scrollBox 자식으로 설정
+    Scroll_Chat->AddChild(chatItem);
+
+    // 만약에 스크롤이 맨 끝이라면
+    if (scrollOffset == scrollEndofOffset)
+    {
+        // 스크롤을 강제로 끝으로 이동 시키자
+        //Scroll_Chat->ScrollToEnd();
+        // 개행이된 내용은 맨끝으로 이동을 하지 않는 문제 때문에 0.1초 뒤에 다시 한 번 강제로 끝으로 이동!
+        FTimerHandle handle;
+        GetWorld()->GetTimerManager().SetTimer(handle, [this]() {
+            // 다시 한 번 강제로 끝으로 이동
+            Scroll_Chat->ScrollToEnd();
+            }, 0.01f, false);
+    }
+}
+
 void UGameUI::OnTextBoxCommitted(const FText& Text, ETextCommit::Type CommitMethod)
 {
     // 만약에 Enter를 쳤다면
     if (CommitMethod == ETextCommit::OnEnter)
     {
-        float scrollOffset = Scroll_Chat->GetScrollOffset();
-
-        float scrollEndofOffset = Scroll_Chat->GetScrollOffsetOfEnd();
-
-        // chatItem 을 하나 만든다
-        UChatItem* chatItem = CreateWidget<UChatItem>(GetWorld(), chatItemFactory);
         // 채팅 내용을 --- > 닉네임 : 안녕하세요
         FString chat = FString::Printf(TEXT("%s : %s"), *myPlayerState->GetPlayerName(), *Text.ToString());
 
-
-        // 만들어진 chatItem에 내용을 셋팅
-        chatItem->SetContent(FText::FromString(chat));
-
-        // scrollBox 자식으로 설정
-        Scroll_Chat->AddChild(chatItem);
-
-        // 만약에 스크롤이 맨 끝이라면
-        if (scrollOffset == scrollEndofOffset)
-        {
-            // 스크롤을 강제로 끝으로 이동 시키자
-            //Scroll_Chat->ScrollToEnd();
-            // 개행이된 내용은 맨끝으로 이동을 하지 않는 문제 때문에 0.1초 뒤에 다시 한 번 강제로 끝으로 이동!
-            FTimerHandle handle;
-            GetWorld()->GetTimerManager().SetTimer(handle, [this]() {
-                // 다시 한 번 강제로 끝으로 이동
-                Scroll_Chat->ScrollToEnd();
-                }, 0.01f, false);
-        }
+        // 서버에게 채팅 내용을 전달하자
+        myPlayerState->ServerRPC_SendChat(chat);
 
         // edit_chat 내용을 초기화
         Edit_Chat->SetText(FText());

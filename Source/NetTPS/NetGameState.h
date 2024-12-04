@@ -22,4 +22,8 @@ public:
     class UGameUI* gameUI;
 
     void ShowCursor(bool isShow);
+
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastRPC_DestroySession();
+    void LeavePlayer();
 };
