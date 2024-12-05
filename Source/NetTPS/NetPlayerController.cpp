@@ -63,5 +63,14 @@ void ANetPlayerController::Tick(float DeltaSeconds)
                 gi->DestroyMySession();
             }
         }
+
+        if (WasInputKeyJustPressed(EKeys::O))
+        {
+            StartTalking();
+        }
+        if (WasInputKeyJustReleased(EKeys::O))
+        {
+            StopTalking();
+        }
     }
 }
